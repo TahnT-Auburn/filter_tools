@@ -67,10 +67,10 @@ if __name__ == '__main__':
 
     #Set monte carlo specs
     mc_length = 50
-    x1_mc = np.matrix(np.zeros((mc_length, rls_length)))    #Initialize monte carlo matrices
-    x2_mc = np.matrix(np.zeros((mc_length, rls_length)))
-    x1_err_mc = np.matrix(np.zeros((mc_length, rls_length)))
-    x2_err_mc = np.matrix(np.zeros((mc_length, rls_length)))
+    x1_mc = np.zeros((mc_length, rls_length))   #Initialize monte carlo matrices
+    x2_mc = np.zeros((mc_length, rls_length))
+    x1_err_mc = np.zeros((mc_length, rls_length))
+    x2_err_mc = np.zeros((mc_length, rls_length))
     for k in range(mc_length):
     
         n = np.sqrt(R)*np.random.randn(len(t))  #Update noise
@@ -85,8 +85,8 @@ if __name__ == '__main__':
         dop_rls = list()
         P_pred_rls = list()
 
-        x = np.matrix(rls_config["x_init"])
-        P = np.matrix(rls_config["P_init"])
+        x = np.array(rls_config["x_init"])
+        P = np.array(rls_config["P_init"])
         x_rls.append(x)
         P_rls.append(P)
         
@@ -97,23 +97,19 @@ if __name__ == '__main__':
             H_rls = np.hstack((r[(i*rls_samples):((i+1)*rls_samples)], np.ones(rls_samples).reshape(-1,1)))
 
             #RLS
-            x, P, L, innov, dop, P_pred = rls_instance.rls(Y=Y_rls, H=H_rls, R=R, P=P, x=x)
+            x, P, L, innov = rls_instance.rls(Y=Y_rls, H=H_rls, R=R*np.identity(rls_samples), P=P, x=x)
 
             #Append outputs
             x_rls.append(x)
             P_rls.append(P)
             L_rls.append(L)
             innov_rls.append(innov)
-            dop_rls.append(dop)
-            P_pred_rls.append(P_pred)
 
         #Covert output to nd.array
         x_rls = np.asarray(x_rls)
         P_rls = np.asarray(P_rls)
         L_rls = np.asarray(L_rls)
         innov_rls = np.asarray(innov)
-        dop_rls = np.asarray(dop_rls)
-        P_pred_rls = np.asarray(P_pred)
 
         #Append monte carlo matrices
         x1_mc[k,:] = x_rls[:,0].T

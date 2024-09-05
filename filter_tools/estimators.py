@@ -8,7 +8,7 @@
         A class that houses various filters/estimators. 
         Filters include:
             *Batch Least Squares
-            *Recursive Least Squares
+            *Recursive Least Squares / Nonlinear RLS
         {add filters}
 
     Dependencies:
@@ -44,130 +44,166 @@ class Estimators:
         self.n = n
         self.m = m
 
+
     # ----- Least Squares -----#
-    def ls(self, mc:bool=False, **kwargs):
+    def ls(self, **kwargs):
         '''
         Descrption:
             Batch least-squares estimation
         Input(s):
-            mc: Monte Carlo configuration
-                type: <bool>
             Y:  (m x 1) Measurement value/vector
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
             H:  (m x n) Observation matrix 
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
         Output(s):
             x:  (n x 1) State(s) estimate(s)
-                type: <np.matrix>
         '''
-        if mc:
-            for value in kwargs.values(): kwargs = value
 
         #Declare arguements
         Y = kwargs['Y']
         H = kwargs['H']
 
         #Assert valid input(s) type
-        assert type(Y) == int or type(Y) == float or type(Y) == np.matrix or type(Y) == np.array or type(Y) == np.ndarray,\
-            f"Input <Y> has invalid type. Expected <int>/<float> or <np.matrix>/<np.array>/<np.ndarray> but recieved <{type(Y)}>" 
-        assert type(H) == int or type(H) == float or type(H) == np.matrix or type(H) == np.array or type(H) == np.ndarray,\
-            f"Input <H> has invalid type. Expected <int>/<float> or <np.matrix>/<np.array>/<np.ndarray> but recieved <{type(H)}>"
-        
-        #Convert to matrix domain
-        if (type(Y) != np.matrix):
-            Y = np.asmatrix(Y)
-        if (type(H) != np.matrix):
-            H = np.asmatrix(H)
-
-        #Assert valid input(s) type
-        assert Y.shape[0] == self.m and Y.shape[1] == 1,\
-            f"Input <Y> has invalid dimensions. Expected ({self.m},{1}) but recieved ({Y.shape[0]},{Y.shape[1]})"
-        assert H.shape[0] == self.m and H.shape[1] == self.n,\
-            f"Input <H> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({H.shape[0]},{H.shape[1]})"
+        assert np.asmatrix(Y).shape[0] == self.m and np.asmatrix(Y).shape[1] == 1,\
+            f"Input <Y> has invalid dimensions. Expected ({self.m},{1}) but recieved ({np.asmatrix(Y).shape[0]},{np.asmatrix(Y).shape[1]})"
+        assert np.asmatrix(H).shape[0] == self.m and np.asmatrix(H).shape[1] == self.n,\
+            f"Input <H> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({np.asmatrix(H).shape[0]},{np.asmatrix(H).shape[1]})"
 
         #Perform least-squares
-        x = np.linalg.inv(H.T * H) * H.T * Y
+        x = np.linalg.inv(np.transpose(H) @ H) @ np.transpose(H) @ Y
         
         return x
 
+
     #----- Recursive Least Squares -----#
-    def rls(self, mc:bool=False, **kwargs):
+    def rls(self, nonlinear:bool=False, **kwargs):
         '''
         Descrption: 
-            Recursive least-squares estimation. 
+            Recursive least-squares estimation. For nonlinear RLS, set nonlinear input to True.
             Algorithm designed to be embedded in an external iterative loop.
         Input(s):
-            mc: Monte Carlo configuration
-                type: <bool>
+            nonlinear:  Nonlinear RLS configuration
+                        type: <bool>
             Y:  (m x 1) Measurement value/vector
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
-            H:  (m x n) Observation matrix 
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
+            H:  (m x n) Linear observation matrix 
+            h:  (if NRLS)(m x n) Nonlinear observation matrix 
             R:  (m x m) Measurement covariance matrix
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
             P:  (n x n) Estimate covariance matrix
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
             x:  (n x 1) State(s) estimate(s)
-                type: <int>/<float> or <np.matrix>/<np.array>/<np.ndarray>
         Output(s):
             x:  (n x 1) State(s) estimate(s)
-                type: <np.matrix>
             P:  (n x n) Estimate covariance matrix
-                type: <np.matrix>
             L:  (n x m) Gain matrix
-                type: <np.matrix>
             innov:  (m x 1) Measurement innovation
-                    type: <np.matrix>
         '''
 
-        if mc:
-            for value in kwargs.values(): kwargs = value
+        #Declare arguements
+        if (nonlinear): h = kwargs['h']
+        Y = kwargs['Y']
+        H = kwargs['H']
+        R = kwargs['R']
+        P = kwargs['P']
+        x = kwargs['x']
+        
+        #Assert valid input(s) shape
+        if (nonlinear):
+            assert np.asmatrix(h).shape[0] == self.m and np.asmatrix(h).shape[1] == self.n,\
+            f"Input <h> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({np.asmatrix(h).shape[0]},{np.asmatrix(h).shape[1]})" 
+        assert np.asmatrix(Y).shape[0] == self.m and np.asmatrix(Y).shape[1] == 1,\
+            f"Input <Y> has invalid dimensions. Expected ({self.m},{1}) but recieved ({np.asmatrix(Y).shape[0]},{np.asmatrix(Y).shape[1]})"
+        assert np.asmatrix(H).shape[0] == self.m and np.asmatrix(H).shape[1] == self.n,\
+            f"Input <H> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({np.asmatrix(H).shape[0]},{np.asmatrix(H).shape[1]})" 
+        assert np.asmatrix(R).shape[0] == self.m and np.asmatrix(R).shape[1] == self.m,\
+            f"Input <R> has invalid dimensions. Expected ({self.m},{self.m}) but recieved ({np.asmatrix(R).shape[0]},{np.asmatrix(R).shape[1]})"
+        assert np.asmatrix(P).shape[0] == self.n and np.asmatrix(P).shape[1] == self.n,\
+            f"Input <P> has invalid dimensions. Expected ({self.n},{self.n}) but recieved ({np.asmatrix(P).shape[0]},{np.asmatrix(P).shape[1]})"
+        assert np.asmatrix(x).shape[0] == self.n and np.asmatrix(x).shape[1] == 1,\
+            f"Input <x> has invalid dimensions. Expection ({self.n},{1}) but revieved ({np.asmatrix(x).shape[0]},{np.asmatrix(x).shape[1]})"
 
-        #Declare arugements
+        #Recursive least squares
+        L = P @ np.transpose(H) @ np.linalg.inv(H @ P @ np.transpose(H) + R)        #Gain update
+        if (nonlinear):
+            innov = (Y - h @ x)                                                     #Nonlinear meas innovation
+        else:
+            innov = (Y - H @ x)                                                     #Measurement innovation
+        x = x + L @ (innov)                                                         #State update
+        P = (np.identity(self.n) - L @ H) @ P                                       #State covariance update
+
+        return x, P, L, innov
+    
+    
+    #----- Kalman Filter -----#
+    def kf(self, a:int=0, **kwargs):
+        '''
+        Description:
+            Kalman filter estimation.
+            Algorthm designed to be embedded in an external iterative loop.
+        Input(s):
+            a:  Number of inputs
+            F:  (n x n) State transition matrix
+            B:  (n x a) Input matrix
+            u:  (a x 1) State transition input(s)
+            Q:  (n x n) Process covariance matrix
+            Y:  (m x 1) Measurement value/vector
+            H:  (m x n) Observation matrix
+            R:  (m x m) Measurement covariance matrix
+            P:  (n x n) Estimate covariance matrix
+            x:  (n x 1) State(s) estimate(s)
+        Ouput(s):
+            x:  (n x 1) State(s) estimate(s)
+            P:  (n x n) Esimate covariance matrix
+            K:  (n x m) Kalman gain
+            innov:  (m x 1) Measurement innovation  
+        '''
+
+        #Declare arguements
+        F = kwargs['F']
+        if (a > 0):
+            B = kwargs['B']
+            u = kwargs['u']
+        else:
+            B = np.zeros((self.n,1))
+            u = 0
+        Q = kwargs['Q']
         Y = kwargs['Y']
         H = kwargs['H']
         R = kwargs['R']
         P = kwargs['P']
         x = kwargs['x']
 
-        #Assert valid input(s) type
-        assert type(Y) == int or type(Y) == np.int32 or type(Y) == float or type(Y) == np.matrix or type(Y) == np.array or type(Y) == np.ndarray,\
-            f"Input <Y> has invalid type. Expected <int>/<float> or <np.matrix>/<np.array>/<np.ndarray> but recieved <{type(Y)}>"        
-        assert type(H) == int or type(H) == float or type(H) == np.matrix or type(H) == np.array or type(H) == np.ndarray,\
-            f"Input <H> has invalid type. Expected <int>/<float> or <np.matrix>/<np.array>/<np.ndarray> but recieved <{type(H)}>"        
-        assert type(P) == int or type(P) == float or type(P) == np.matrix or type(P) == np.array or type(P) == np.ndarray,\
-            f"Input <P> has invalid type. Expected <int>/<float> or <np.matrix>/<np.array>/<np.ndarray> but recieved <{type(P)}>"
-        assert type(x) == int or type(x) == float or type(x) == np.matrix or type(x) == np.array or type(x) == np.ndarray,\
-            f"Input <x> has invalid type. Expected <int>/<float> or <np.matrix>/<np.array>/<np.ndarray> but recieved <{type(x)}>"
-
-        #Convert to matrix domain
-        if (type(Y) != np.matrix):
-            Y = np.asmatrix(Y)
-        if (type(H) != np.matrix):
-            H = np.asmatrix(H)
-        if (type(P) != np.matrix):
-            P = np.asmatrix(P)
-        if (type(x) != np.matrix):
-            x = np.asmatrix(x)
-
         #Assert valid input(s) shape
-        assert Y.shape[0] == self.m and Y.shape[1] == 1,\
-            f"Input <Y> has invalid dimensions. Expected ({self.m},{1}) but recieved ({Y.shape[0]},{Y.shape[1]})"
-        assert H.shape[0] == self.m and H.shape[1] == self.n,\
-            f"Input <H> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({H.shape[0]},{H.shape[1]})" 
-        assert P.shape[0] == self.n and P.shape[1] == self.n,\
-            f"Input <P> has invalid dimensions. Expected ({self.n},{self.n}) but recieved ({P.shape[0]},{P.shape[1]})"
-        assert x.shape[0] == self.n and x.shape[1] == 1,\
-            f"Input <x> has invalid dimensions. Expection ({self.n},{1}) but revieved ({x.shape[0]},{x.shape[1]})"
+        assert np.asmatrix(F).shape[0] == self.n and np.asmatrix(F).shape[1] == self.n,\
+            f"Input <F> has invalid dimensions. Expected ({self.n},{self.n}) but recieved ({np.asmatrix(F).shape[0]},{np.asmatrix(F).shape[1]})"
+        assert np.asmatrix(B).shape[0] == self.n and np.asmatrix(B).shape[1] == a,\
+            f"Input <B> has invalid dimensions. Expected ({self.n},{a}) but recieved ({np.asmatrix(B).shape[0]},{np.asmatrix(B).shape[1]})"
+        assert np.asmatrix(u).shape[0] == a and np.asmatrix(u).shape[1] == 1,\
+            f"Input <u> has invalid dimensions. Expected ({self.a},{1}) but recieved ({np.asmatrix(u).shape[0]},{np.asmatrix(u).shape[1]})"
+        assert np.asmatrix(Y).shape[0] == self.m and np.asmatrix(Y).shape[1] == 1,\
+            f"Input <Y> has invalid dimensions. Expected ({self.m},{1}) but recieved ({np.asmatrix(Y).shape[0]},{np.asmatrix(Y).shape[1]})"
+        assert np.asmatrix(H).shape[0] == self.m and np.asmatrix(H).shape[1] == self.n,\
+            f"Input <H> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({np.asmatrix(H).shape[0]},{np.asmatrix(H).shape[1]})" 
+        assert np.asmatrix(R).shape[0] == self.m and np.asmatrix(R).shape[1] == self.m,\
+            f"Input <R> has invalid dimensions. Expected ({self.m},{self.m}) but recieved ({np.asmatrix(R).shape[0]},{np.asmatrix(R).shape[1]})"
+        assert np.asmatrix(P).shape[0] == self.n and np.asmatrix(P).shape[1] == self.n,\
+            f"Input <P> has invalid dimensions. Expected ({self.n},{self.n}) but recieved ({np.asmatrix(P).shape[0]},{np.asmatrix(P).shape[1]})"
+        assert np.asmatrix(x).shape[0] == self.n and np.asmatrix(x).shape[1] == 1,\
+            f"Input <x> has invalid dimensions. Expection ({self.n},{1}) but revieved ({np.asmatrix(x).shape[0]},{np.asmatrix(x).shape[1]})"
+        
+        # Time update
+        x = F @ x + B @ u                   #State propagation
+        P = F @ P @ np.transpose(F) + Q     #Prior covariance update
 
-        #Theoretical specs
-        dop = np.linalg.inv(H.T * H)                                            #Dilution of precision
-        P_pred = np.sqrt(R * dop)                                               #Predicted state covariance
+        # Measurement update
+        K = P @ np.transpose(H) @ np.linalg.inv(H @ P @ np.transpose(H) + R)    #Kalman gain
+        innov = (Y - H @ x)                                                     #Innovation
+        x = x + K @ (innov)                                                     #State correction
+        P = (np.identity(self.n) - K @ H) @ P                                   #Covariance update
 
-        #Perform recursive least squares
-        L = P * H.T * np.linalg.inv(H * P * H.T + R*np.identity(self.m))        #Gain update
-        innov = (Y - H*x)                                                       #Measurement innovation
-        x = x + L*(innov)                                                       #State update
-        P = (np.identity(self.n) - L*H)*P                                       #State covariance update
+        return x, P, K, innov
+        
 
-        return x, P, L, innov, dop, P_pred 
+    #----- Extended Kalman Filter -----#
+    '''
+    ***INSERT DESCRIPTION HERE***
+
+    '''
+    def ekf(self):
+        pass
