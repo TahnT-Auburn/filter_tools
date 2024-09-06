@@ -131,18 +131,19 @@ class Estimators:
     
     
     #----- Kalman Filter -----#
-    def kf(self, a:int=0, **kwargs):
+    def kf(self, T, a:int=0, **kwargs):
         '''
         Description:
             Kalman filter estimation.
             Algorthm designed to be embedded in an external iterative loop.
         Input(s):
+            T:  sampling rate
             a:  Number of inputs
             F:  (n x n) State transition matrix
             B:  (n x a) Input matrix
             u:  (a x 1) State transition input(s)
             Q:  (n x n) Process covariance matrix
-            Y:  (m x 1) Measurement value/vector
+            z:  (m x 1) Measurement value/vector
             H:  (m x n) Observation matrix
             R:  (m x m) Measurement covariance matrix
             P:  (n x n) Estimate covariance matrix
@@ -163,7 +164,7 @@ class Estimators:
             B = np.zeros((self.n,1))
             u = 0
         Q = kwargs['Q']
-        Y = kwargs['Y']
+        z = kwargs['z']
         H = kwargs['H']
         R = kwargs['R']
         P = kwargs['P']
@@ -176,8 +177,8 @@ class Estimators:
             f"Input <B> has invalid dimensions. Expected ({self.n},{a}) but recieved ({np.asmatrix(B).shape[0]},{np.asmatrix(B).shape[1]})"
         assert np.asmatrix(u).shape[0] == a and np.asmatrix(u).shape[1] == 1,\
             f"Input <u> has invalid dimensions. Expected ({self.a},{1}) but recieved ({np.asmatrix(u).shape[0]},{np.asmatrix(u).shape[1]})"
-        assert np.asmatrix(Y).shape[0] == self.m and np.asmatrix(Y).shape[1] == 1,\
-            f"Input <Y> has invalid dimensions. Expected ({self.m},{1}) but recieved ({np.asmatrix(Y).shape[0]},{np.asmatrix(Y).shape[1]})"
+        assert np.asmatrix(z).shape[0] == self.m and np.asmatrix(z).shape[1] == 1,\
+            f"Input <z> has invalid dimensions. Expected ({self.m},{1}) but recieved ({np.asmatrix(z).shape[0]},{np.asmatrix(z).shape[1]})"
         assert np.asmatrix(H).shape[0] == self.m and np.asmatrix(H).shape[1] == self.n,\
             f"Input <H> has invalid dimensions. Expected ({self.m},{self.n}) but recieved ({np.asmatrix(H).shape[0]},{np.asmatrix(H).shape[1]})" 
         assert np.asmatrix(R).shape[0] == self.m and np.asmatrix(R).shape[1] == self.m,\
@@ -188,12 +189,12 @@ class Estimators:
             f"Input <x> has invalid dimensions. Expection ({self.n},{1}) but revieved ({np.asmatrix(x).shape[0]},{np.asmatrix(x).shape[1]})"
         
         # Time update
-        x = F @ x + B @ u                   #State propagation
-        P = F @ P @ np.transpose(F) + Q     #Prior covariance update
+        x = F @ x + (B @ u).transpose()     #State propagation
+        P = F @ P @ np.transpose(F) + Q     #Priori covariance update
 
         # Measurement update
         K = P @ np.transpose(H) @ np.linalg.inv(H @ P @ np.transpose(H) + R)    #Kalman gain
-        innov = (Y - H @ x)                                                     #Innovation
+        innov = (z - H @ x)                                                     #Innovation
         x = x + K @ (innov)                                                     #State correction
         P = (np.identity(self.n) - K @ H) @ P                                   #Covariance update
 
