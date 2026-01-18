@@ -19,6 +19,7 @@
 '''
 import numpy as np
 import torch
+from numpy.typing import NDArray
 
 class Estimators:
 
@@ -130,11 +131,11 @@ class Estimators:
         return x, P, L, innov
     
     
-    #----- Kalman Filter -----#
+    #----- Kalman Filter / Extended Kalman Filter -----#
     def kf(self, T, num_inputs:int=0, as_tensors:bool=False, device='cpu', **kwargs):
         '''
         Description:
-            Kalman filter estimation.
+            Kalman filter estimator. Also supports Extended Kalman filter applications
             Algorthm designed to be embedded in an external iterative loop.
         Input(s):
             T:  sampling rate
@@ -251,11 +252,61 @@ class Estimators:
 
         return x, P, K, innov
         
+    def kf_predict(
+        self,
+        x:NDArray,
+        P:NDArray,
+        PHI:NDArray,
+        G:NDArray,
+        u:NDArray,
+        Q:NDArray):
+        """
+        Kalman filter prediction step
 
-    #----- Extended Kalman Filter -----#
-    '''
-    ***INSERT DESCRIPTION HERE***
+        Args:
+            x (NDArray): Current state vector.
+            P (NDArray): Current state covariance. 
+            PHI (NDArray): State transition matrix.
+            G (NDArray): Input matrix.
+            u (NDArray): Input.
+            Q (NDArray): Process noise matrix.
+        Returns:
+            x (NDArray): A priori state vector.
+            P (NDArray): A priori state covariance. 
+        """
+        x = PHI @ x + G @ u                  
+        P = PHI @ P @ PHI.T + Q
+        
+        return x, P
+    
+    def kf_update(
+        self,
+        x:NDArray,
+        P:NDArray,
+        z:NDArray, 
+        H:NDArray,
+        h_x:NDArray,
+        R:NDArray
+        ):
+        """
+        Kalman filter (of EKF) update step
+        Args:
+            x (NDArray): A priori state vector.
+            P (NDArray): A priori state covariance. 
+            z (NDArray): Measurements vector.
+            H (NDArray): Measurement observation matrix.
+            h_x (NDArray): Predicted measurement(s), h(x).
+            R (NDArray): Measurement noise matrix.
+        Returns:
+            x (NDArray): Priori state vector.
+            P (NDArray): Priori state covariance matrix.
+            innov (NDArray): Measurement innovation.
+            K (NDArray): Kalman gain.
+        """
+        innov = z - h_x
+        S = H @ P @ H.T + R
+        K = P @ H.T @ np.linalg.inv(S)
+        x = x + K @ innov
+        P  = (np.eye(self.n) - K @ H) @ P 
 
-    '''
-    def ekf(self):
-        pass
+        return x, P, innov, K
