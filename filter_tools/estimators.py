@@ -257,6 +257,7 @@ class Estimators:
         x:NDArray,
         P:NDArray,
         PHI:NDArray,
+        F:NDArray,
         G:NDArray,
         u:NDArray,
         Q:NDArray):
@@ -275,7 +276,7 @@ class Estimators:
             P (NDArray): A priori state covariance. 
         """
         x = PHI @ x + G @ u                  
-        P = PHI @ P @ PHI.T + Q
+        P = F @ P @ F.T + Q
         
         return x, P
     
